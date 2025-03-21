@@ -90,8 +90,8 @@ useEffect(() => {
 
 ### 自動スライス機能
 ```javascript
-const [getOriginalCapitalName, setOriginalCapitalName] = useState(state.capital.name);
-const [getCurrentCapitalName, setCurrentCapitalName] = useState(state.capital.name);
+const [originalCapitalName, setOriginalCapitalName] = useState(state.capital.name);
+const [currentCapitalName, setCurrentCapitalName] = useState(state.capital.name);
 
 useEffect(() => {
   binder(state.capital).name(setOriginalCapitalName);
@@ -104,23 +104,23 @@ state.capital = state.cities.Kyoto
 ```
 以上のコードでは、東京が江戸に改名されたあと、日本の首都が京都に変更されたことを表しています。
 
-このコードでは、`setOriginalCapitalName`は、binderの評価時に`state.capital`があらわしていた状態（東京という都市に対応する状態）のnameにバインドされています。したがって、その後state.capitalが更新されても`setOriginalCapitalName`は呼ばれず、`getOriginalCapitalName()`は"Edo"を返します。一方で、`setCurrentCapitalName`は、`state`状態の`.capital.name`というプロパティチェーンにバインドされています。したがって、state.capitalが更新された場合にも`setCurrentCapitalName`は呼ばれます。したがって、`getCurrentCapitalName()`は`state.cities.Kyoto.name`の値を返します。
+このコードでは、`setOriginalCapitalName`は、binderの評価時に`state.capital`があらわしていた状態（東京という都市に対応する状態）のnameにバインドされています。したがって、その後state.capitalが更新されても`setOriginalCapitalName`は呼ばれず、`originalCapitalName`は"Edo"に設定されたままです。一方で、`setCurrentCapitalName`は、`state`状態の`.capital.name`というプロパティチェーンにバインドされています。したがって、state.capitalが更新された場合にも`setCurrentCapitalName`は呼ばれます。したがって、`currentCapitalName`は`state.cities.Kyoto.name`の値に更新されます。
 
 ### 子孫オブジェクトの再バインド
 状態ツリーの末端の数値や文字列ではなく、途中のノードであるオブジェクトにバインドした場合は、セッター関数に「状態プロキシオブジェクト」が渡されます。したがって、propsなどを通じて子孫コンポーネントにこのオブジェクトを渡せば、渡された状態オブジェクトを起点にバインドすることができます。
 
 CountryView:
 ```jsx
-const [getCapital, setCapital] = useState(state.capital);
+const [capital, setCapital] = useState(state.capital);
 useEffect(() => {
   binder(state).capital(capital);
 }, []);
-return (<div> ... <CityView city={getCapital()} /> ... </div>)
+return (<div> ... <CityView city={capital} /> ... </div>)
 ```
 
 CityView:
 ```javascript
-const [getName, setName] = useState(props.city.name);
+const [name, setName] = useState(props.city.name);
 useEffect(() => {
   binder(props.city).name(setName);
 }, []);
@@ -131,7 +131,7 @@ treeStateに渡す初期値の状態ツリーには、配列を含むことが�
 
 ```javascript
 import { treeState, binder, update } from 'binduct'
-const [getList, setList] = useState(state.list);
+const [list, setList] = useState(state.list);
 
 // state.list に新たな値が代入された場合を監視
 binder(state).list(setList)
