@@ -2,9 +2,11 @@
   "name": "binduct",
   "version": "0.0.1",
   "main": "src/index.js",
+  "types": "types/index.d.ts",
   "description": "Auto-slicable tree state management.",
   "scripts": {
-    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --coverage"
+    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --coverage test/*",
+    "test:types": "tsc --project tsconfig.test.json"
   },
   "dependencies": {},
   "devDependencies": {

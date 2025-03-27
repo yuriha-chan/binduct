@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "binduct": ["types"]
+    },
+    "noEmit": true
+  },
+  "include": ["types-test/test.ts"]
+}
