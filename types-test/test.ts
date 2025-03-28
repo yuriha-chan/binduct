@@ -1,11 +1,11 @@
 import { treeState, binder, update } from "binduct";
-import type { Binder, WrappedState } from "binduct";
+import type { Binder, StateProxy } from "binduct";
 
 type Item = { name: string; content: Array<number>;};
 type Stock = { count: number; item: Item; };
 
 const stock: Stock = { count: 4, item: { name: "X Series", content: [1, 2, 3] } };
-const state: WrappedState<Stock> = treeState(stock);
+const state: StateProxy<Stock> = treeState(stock);
 
 console.log(state.count + 1);
 // @ts-expect-error
@@ -39,7 +39,7 @@ state.item = treeState({name: "Y Series", content: [5, 4, 3]});
 type MaybeStock = { count: number; item?: Item; };
 
 const stock2: MaybeStock = { count: 3, item: { name: "Z Series", content: [2, 3] } };
-const state2: WrappedState<MaybeStock> = treeState(stock2);
+const state2: StateProxy<MaybeStock> = treeState(stock2);
 
 binder(state2).item?.name?.((x) => console.log(x));
 // x can be undefined

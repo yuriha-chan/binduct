@@ -1,11 +1,11 @@
 type Primitive = string | number | boolean | null | undefined | symbol | bigint;
 
 export declare const update: unique symbol;
-export declare function treeState<T extends object>(value: T): WrappedState<T>;
-export declare function binder<T>(obj: WrappedState<T>): Binder<T>;
+export declare function treeState<T extends object>(value: T): StateProxy<T>;
+export declare function binder<T>(obj: StateProxy<T>): Binder<T>;
 
-export declare type WrappedState<T> = {
-  [K in keyof T]: T[K] extends Primitive ? T[K] : WrappedState<T[K]>;
+export declare type StateProxy<T> = {
+  [K in keyof T]: T[K] extends Primitive ? T[K] : StateProxy<T[K]>;
 };
 
 export declare type Binder<T> = {
@@ -17,7 +17,7 @@ export declare type Binder<T> = {
     UndefinableBinder<T[K]>
   : Binder<T[K]>
 } & {
-  (setter: (value: WrappedState<T>) => void): void;
+  (setter: (value: StateProxy<T>) => void): void;
 };
 
 export declare type UndefinableBinder<T> = {
@@ -27,5 +27,5 @@ export declare type UndefinableBinder<T> = {
     { [update] : (setter: (updater: <U>(prev: U[]) => U[]) => void) => void } & UndefinableBinder<T[K]>
   : UndefinableBinder<T[K]>
 } & {
-  (setter: (value: WrappedState<T> | undefined) => void): void;
+  (setter: (value: StateProxy<T> | undefined) => void): void;
 };
