@@ -4,7 +4,8 @@
     "paths": {
       "binduct": ["types"]
     },
-    "noEmit": true
+    "noEmit": true,
+    "strict": true
   },
   "include": ["types-test/test.ts"]
 }

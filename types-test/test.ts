@@ -13,13 +13,13 @@ console.log(state.quality);
 
 const stateBinder: Binder<Stock> = binder(state);
 stateBinder.count((value) => {
-  console.log("Count + 1:", (value ?? 0) + 1);
+  console.log("Count + 1:", value + 1);
   // @ts-expect-error
   console.log("Count First Letter ??:", value.charAt(0));
 });
 
 stateBinder.item.name((value) => {
-  console.log("Item Name Letter:", (value ?? "Y").charAt(0));
+  console.log("Item Name Letter:", value.charAt(0));
 });
 
 let copy: number[] = [1, 2, 3];
@@ -35,4 +35,13 @@ state.count = 5;
 state.item.name = "A Series";
 state.item.content.pop();
 state.item = treeState({name: "Y Series", content: [5, 4, 3]});
-state.item = undefined;
+
+type MaybeStock = { count: number; item?: Item; };
+
+const stock2: MaybeStock = { count: 3, item: { name: "Z Series", content: [2, 3] } };
+const state2: WrappedState<MaybeStock> = treeState(stock2);
+
+binder(state2).item?.name?.((x) => console.log(x));
+// x can be undefined
+// @ts-expect-error
+binder(state2).item?.name?.((x) => console.log(x.charAt(0)));

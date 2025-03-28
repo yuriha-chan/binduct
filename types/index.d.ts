@@ -12,8 +12,20 @@ export declare type Binder<T> = {
   [K in keyof T]: T[K] extends Primitive ?
     (setter: (prev: T[K]) => void) => void
   : T[K] extends any[] ?
-    { [update] : (setter: (updater: <U>(prev: U[]) => U[]) => void) => void } & Binder<T[K]>
+    { [update] : (setter: (updater: <U>(prev: U[]) => U[]) => void) => void } & (undefined extends T[K] ? UndefinableBinder<T[K]> : Binder<T[K]>)
+  : undefined extends T[K] ?
+    UndefinableBinder<T[K]>
   : Binder<T[K]>
+} & {
+  (setter: (value: WrappedState<T>) => void): void;
+};
+
+export declare type UndefinableBinder<T> = {
+  [K in keyof T]: T[K] extends Primitive ?
+    (setter: (prev: T[K] | undefined) => void) => void
+  : T[K] extends any[] ?
+    { [update] : (setter: (updater: <U>(prev: U[]) => U[]) => void) => void } & UndefinableBinder<T[K]>
+  : UndefinableBinder<T[K]>
 } & {
   (setter: (value: WrappedState<T> | undefined) => void): void;
 };
