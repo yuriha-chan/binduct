@@ -18,6 +18,7 @@ class State {
     for (let [subscription, [path, setter]] of this.listeners[key].entries()) {
       let broke = false;
       let v = value;
+      let changed = false;
       for (let i = 0; i < path.length; i++) {
         const entry = path[i];
         const {key: prop, value: previous} = entry;
@@ -29,9 +30,12 @@ class State {
         if (i !== path.length - 1) {
           previous.listeners[path[i+1].key].delete(subscription);
           v = v?.current?.[path[i+1].key];
+          changed = true;
         }
       }
-      this.subscribe(path, setter, subscription);
+      if (changed) {
+        this.subscribe(path, setter, subscription);
+      }
       !broke && setter(isPrimitive(v) ? v : wrapState(v));
       v = isPrimitive(v) ? v : v.current;
     }
