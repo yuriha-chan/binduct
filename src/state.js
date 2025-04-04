@@ -54,10 +54,17 @@ class State {
   }
 }
 
-const recursiveWrap = (obj, wrapper) => {
+const recursiveWrap = (obj, wrapper, checkShared) => {
+  let reached;
+  if (checkShared) {
+    reached = new Map();
+  }
   const _recursive = (obj) => {
     if (isPrimitive(obj)) {
       return obj;
+    }
+    if (checkShared && reached.has(obj)) {
+      return reached.get(obj)
     }
     let ret;
     if (obj instanceof Array) {
@@ -68,7 +75,11 @@ const recursiveWrap = (obj, wrapper) => {
         ret[k] = _recursive(obj[k]);
       } 
     }
-    return wrapper(ret);
+    ret = wrapper(ret);
+    if (checkShared) {
+      reached.set(obj, ret);
+    }
+    return ret;
   }
   return _recursive(obj);
 };
@@ -128,8 +139,8 @@ const wrapState = (value) =>
       }),
   });
 
-const treeState = (value) =>
-  wrapState(recursiveWrap(value, (x) => new State(x)));
+const treeState = (value, skipSharedCheck) =>
+  wrapState(recursiveWrap(value, (x) => new State(x), !skipSharedCheck));
 
 const binder = (obj) => {
   const root = obj[_unwrap];
