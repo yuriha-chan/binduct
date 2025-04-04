@@ -121,6 +121,16 @@ describe("treeState", () => {
     expect(getValue()).toBe("Anna");
   });
 
+  test("Shared object detection", () => {
+    const sharedObject = { x: 3 };
+    const state = treeState({ a: sharedObject, b: sharedObject });
+    const [getValue, setValue] = makeState();
+    binder(state).a.x(setValue);
+    expect(getValue()).toBe(3);
+    state.b.x = 7;
+    expect(state.a.x).toBe(7);
+    expect(getValue()).toBe(7);
+  });
 
   test("Object level binding", () => {
     const state = treeState({ a: 1, b: { vector: { x: 2, y: 3 }, scalar: 3 } });
