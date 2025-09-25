@@ -1,5 +1,7 @@
 const isPrimitive = (v) => ((typeof(v) !== 'object' && typeof(v) !== 'function') || v === null);
 
+const TypedArray = Object.getPrototypeOf(Int8Array));
+
 class State {
   constructor(value){
     this.current = value;
@@ -67,7 +69,10 @@ const recursiveWrap = (obj, wrapper, checkShared) => {
       return reached.get(obj)
     }
     let ret;
-    if (obj instanceof Array) {
+    // instanceof TypedArray
+    if (obj instanceof TypedArray) {
+      ret = obj;
+    } else if (obj instanceof Array) {
       ret = obj.map(_recursive);
     } else {
       ret = {};

@@ -207,6 +207,17 @@ describe("treeState", () => {
     expect(getValue().length).toBe(3);
   });
 
+  test("Modify typed array state", () => {
+    const state = treeState({ numbers: Uint8Array.from([ 2, 3, 4, 5 ]) });
+    const [getValue, setValue] = makeState();
+    binder(state).numbers[update](setValue);
+    binder(state).numbers(setValue);
+    expect(getValue()[0]).toBe(2);
+    expect(getValue().length).toBe(4);
+    expect(state.numbers.pop()).toBe(5);
+    expect(getValue().length).toBe(3);
+  });
+
   test("Assigning unwrapped object throws error", () => {
     const state = treeState({ a: 1, b: { c: 2 } });
     expect(() => {
