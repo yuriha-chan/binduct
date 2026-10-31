@@ -1,4 +1,5 @@
 import { treeState, binder, update } from "../src/state.js";
+import * as binduct from "../src/index.js";
 import {jest} from '@jest/globals';
 
 const makeState = () => {
@@ -223,5 +224,196 @@ describe("treeState", () => {
     expect(() => {
       state.b = { c: 5 };
     }).toThrow("Assigned object must be wrapped by treeState(...)");
+  });
+});
+
+describe("subscription lifecycle", () => {
+  test("public entry exposes update and registrations return callables", () => {
+    expect(typeof binduct.update).toBe("symbol");
+    const state = binduct.treeState({ count: 0, nested: { label: "x" }, items: [1] });
+    const stopLeaf = binduct.binder(state).count(() => {});
+    const stopObject = binduct.binder(state).nested(() => {});
+    const stopArrayUpdate = binduct.binder(state).items[binduct.update](() => {});
+    expect(typeof stopLeaf).toBe("function");
+    expect(typeof stopObject).toBe("function");
+    expect(typeof stopArrayUpdate).toBe("function");
+    stopLeaf();
+    stopObject();
+    stopArrayUpdate();
+  });
+
+  test("ordinary binding delivers immediately and disposal stops it", () => {
+    const state = binduct.treeState({ value: 1 });
+    const setter = jest.fn();
+    const stop = binduct.binder(state).value(setter);
+    expect(typeof stop).toBe("function");
+    expect(setter).toHaveBeenCalledTimes(1);
+    expect(setter).toHaveBeenLastCalledWith(1);
+    state.value = 2;
+    expect(setter).toHaveBeenLastCalledWith(2);
+    stop();
+    stop();
+    state.value = 3;
+    expect(setter).toHaveBeenCalledTimes(2);
+  });
+
+  test("disposal detaches only its own registration for the same setter", () => {
+    const state = binduct.treeState({ value: 1 });
+    const setter = jest.fn();
+    const stopFirst = binduct.binder(state).value(setter);
+    const stopSecond = binduct.binder(state).value(setter);
+    expect(typeof stopFirst).toBe("function");
+    expect(typeof stopSecond).toBe("function");
+    expect(setter).toHaveBeenCalledTimes(2);
+    stopFirst();
+    state.value = 2;
+    expect(setter).toHaveBeenCalledTimes(3);
+    expect(setter).toHaveBeenLastCalledWith(2);
+    stopSecond();
+    state.value = 3;
+    expect(setter).toHaveBeenCalledTimes(3);
+  });
+
+  test("object binding stops delivering replacements after disposal", () => {
+    const state = binduct.treeState({ branch: { value: 1 } });
+    const setter = jest.fn();
+    const stop = binduct.binder(state).branch(setter);
+    expect(typeof stop).toBe("function");
+    expect(setter.mock.calls[0][0].value).toBe(1);
+    state.branch = binduct.treeState({ value: 2 });
+    expect(setter).toHaveBeenCalledTimes(2);
+    expect(setter.mock.calls[1][0].value).toBe(2);
+    stop();
+    stop();
+    state.branch = binduct.treeState({ value: 3 });
+    expect(setter).toHaveBeenCalledTimes(2);
+  });
+
+  test("root-path binding follows replacement and disposal cleans the current path", () => {
+    const state = binduct.treeState({ b: { c: 2 } });
+    const oldBranch = state.b;
+    const setter = jest.fn();
+    const stop = binduct.binder(state).b.c(setter);
+    expect(typeof stop).toBe("function");
+    expect(setter).toHaveBeenLastCalledWith(2);
+    state.b = binduct.treeState({ c: 10 });
+    expect(setter).toHaveBeenLastCalledWith(10);
+    oldBranch.c = 3;
+    expect(setter).toHaveBeenCalledTimes(2);
+    stop();
+    state.b.c = 11;
+    expect(setter).toHaveBeenCalledTimes(2);
+    state.b = binduct.treeState({ c: 12 });
+    expect(setter).toHaveBeenCalledTimes(2);
+  });
+
+  test("branch-rooted binding stays on the old branch until disposed", () => {
+    const state = binduct.treeState({ b: { c: 2 } });
+    const oldBranch = state.b;
+    const setter = jest.fn();
+    const stop = binduct.binder(oldBranch).c(setter);
+    expect(typeof stop).toBe("function");
+    expect(setter).toHaveBeenLastCalledWith(2);
+    state.b = binduct.treeState({ c: 10 });
+    expect(setter).toHaveBeenCalledTimes(1);
+    state.b.c = 11;
+    expect(setter).toHaveBeenCalledTimes(1);
+    oldBranch.c = 4;
+    expect(setter).toHaveBeenLastCalledWith(4);
+    stop();
+    oldBranch.c = 5;
+    expect(setter).toHaveBeenCalledTimes(2);
+  });
+
+  test("a path can be subscribed again after disposal", () => {
+    const state = binduct.treeState({ value: 1 });
+    const first = jest.fn();
+    const stopFirst = binduct.binder(state).value(first);
+    expect(typeof stopFirst).toBe("function");
+    stopFirst();
+    state.value = 2;
+    expect(first).toHaveBeenCalledTimes(1);
+    const second = jest.fn();
+    const stopSecond = binduct.binder(state).value(second);
+    expect(typeof stopSecond).toBe("function");
+    expect(second).toHaveBeenLastCalledWith(2);
+    state.value = 3;
+    expect(second).toHaveBeenLastCalledWith(3);
+    stopSecond();
+  });
+
+  test("separate trees do not share subscriptions", () => {
+    const stateA = binduct.treeState({ value: 1 });
+    const stateB = binduct.treeState({ value: 1 });
+    const setA = jest.fn();
+    const setB = jest.fn();
+    const stopA = binduct.binder(stateA).value(setA);
+    const stopB = binduct.binder(stateB).value(setB);
+    expect(typeof stopA).toBe("function");
+    expect(typeof stopB).toBe("function");
+    stateA.value = 2;
+    expect(setA).toHaveBeenLastCalledWith(2);
+    expect(setB).toHaveBeenCalledTimes(1);
+    expect(setB).toHaveBeenLastCalledWith(1);
+    stopA();
+    stopB();
+  });
+
+  test("array update receives updater functions without an initial value", () => {
+    const state = binduct.treeState({ items: [1, 2] });
+    const onUpdate = jest.fn();
+    const stop = binduct.binder(state).items[binduct.update](onUpdate);
+    expect(typeof stop).toBe("function");
+    expect(onUpdate).not.toHaveBeenCalled();
+    const original = [1, 2];
+    state.items.push(3);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    const updater = onUpdate.mock.calls[0][0];
+    expect(typeof updater).toBe("function");
+    expect(updater(original)).toEqual([1, 2, 3]);
+    expect(original).toEqual([1, 2]);
+    stop();
+  });
+
+  test("array update follows replacement and disposes independently", () => {
+    const state = binduct.treeState({ items: [1, 2] });
+    const oldItems = state.items;
+    const onUpdate = jest.fn();
+    const onReplace = jest.fn();
+    const stopUpdate = binduct.binder(state).items[binduct.update](onUpdate);
+    const stopReplace = binduct.binder(state).items(onReplace);
+    expect(typeof stopUpdate).toBe("function");
+    expect(typeof stopReplace).toBe("function");
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(onReplace).toHaveBeenCalledTimes(1);
+    state.items = binduct.treeState([3, 4]);
+    expect(onReplace).toHaveBeenCalledTimes(2);
+    oldItems.push(5);
+    expect(onUpdate).not.toHaveBeenCalled();
+    state.items.push(5);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    const updater = onUpdate.mock.calls[0][0];
+    expect(updater([3, 4])).toEqual([3, 4, 5]);
+    stopUpdate();
+    state.items.push(6);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onReplace).toHaveBeenCalledTimes(2);
+    state.items = binduct.treeState([7]);
+    expect(onReplace).toHaveBeenCalledTimes(3);
+    stopReplace();
+    state.items = binduct.treeState([8]);
+    expect(onReplace).toHaveBeenCalledTimes(3);
+  });
+
+  test("disposal survives a missing intermediate path", () => {
+    const state = binduct.treeState({ b: { c: 2 } });
+    const setter = jest.fn();
+    const stop = binduct.binder(state).b.c(setter);
+    expect(typeof stop).toBe("function");
+    state.b = binduct.treeState({});
+    expect(setter).toHaveBeenLastCalledWith(undefined);
+    stop();
+    state.b.c = 4;
+    expect(setter).toHaveBeenCalledTimes(2);
   });
 });

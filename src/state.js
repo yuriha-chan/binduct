@@ -1,6 +1,6 @@
 const isPrimitive = (v) => ((typeof(v) !== 'object' && typeof(v) !== 'function') || v === null);
 
-const TypedArray = Object.getPrototypeOf(Int8Array));
+const TypedArray = Object.getPrototypeOf(Int8Array);
 
 class State {
   constructor(value){
@@ -30,7 +30,9 @@ class State {
         }
         entry.value = v;
         if (i !== path.length - 1) {
-          previous.listeners[path[i+1].key].delete(subscription);
+          const listeners = previous.listeners[path[i+1].key];
+          listeners.delete(subscription);
+          subscription.listeners.delete(listeners);
           v = v?.current?.[path[i+1].key];
           changed = true;
         }
@@ -46,13 +48,20 @@ class State {
   subscribe(path, setter, subscription) {
     let state = this;
     let i = 0;
-    subscription ??= Symbol();
-    for (let {key: k, value: v} of path) {
+    subscription ??= { listeners: new Set() };
+    for (let {key: k} of path) {
       state.listeners[k] ??= new Map();
       state.listeners[k].set(subscription, [path.slice(i), setter]);
+      subscription.listeners.add(state.listeners[k]);
       state = state.current[k];
       i++;
     }
+    return () => {
+      for (let listeners of subscription.listeners) {
+        listeners.delete(subscription);
+      }
+      subscription.listeners.clear();
+    };
   }
 }
 
@@ -152,8 +161,11 @@ const binder = (obj) => {
   const _binder = (s, path) =>
     (isPrimitive(s)) ?
       (setter) => {
-        root.subscribe(path, setter);
-        setter(s);
+        const stop = root.subscribe(path, setter);
+        if (path[path.length - 1]?.key !== update) {
+          setter(s);
+        }
+        return stop;
       } :
       new Proxy(() => {}, {
         get: (target, key) => 
@@ -163,8 +175,9 @@ const binder = (obj) => {
         },
         apply: (target, thisArg, args) => {
           const [setter, ...rest] = args;
-          root.subscribe(path, setter);
-          setter(wrapState(s)); },
+          const stop = root.subscribe(path, setter);
+          setter(wrapState(s));
+          return stop; },
         has: (target, key) =>
           (key in s.current),
         ownKeys: (target) =>
