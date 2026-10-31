@@ -1,1 +1,1 @@
-export { treeState, binder } from "./state.js";
+export { treeState, binder, update } from "./state.js";
